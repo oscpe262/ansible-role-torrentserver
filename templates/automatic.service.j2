@@ -1,0 +1,18 @@
+# {{ ansible_managed }} {{ role_path }}
+[Unit]
+Description=RSS downloader that adds torrents directly to Transmission
+After=transmission.service
+
+[Service]
+Type=simple
+User={{ transmissionUser }}
+{% if 'Arch' in ansible_distribution %}
+ExecStart=/usr/bin/automatic -f
+{% else %}
+ExecStart=/usr/local/bin/automatic -f
+{% endif %}
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

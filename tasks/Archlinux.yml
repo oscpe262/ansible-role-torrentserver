@@ -1,0 +1,40 @@
+## roles/torrentserver/Archlinux.yml
+## Arch Linux main file
+# vim:ft=ansible:
+---
+- name: automatic - rss downloader
+  become: True
+  become_user: splatrat
+  yaourt:
+    name: automatic
+    state: present
+
+- name: automatic-config
+  template:
+    src: automatic.conf.j2
+    dest: /etc/automatic.conf
+  notify:
+    - start automatic
+
+- name: transmission
+  become: True
+  become_user: splatrat
+  yaourt:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - "transmission-cli"
+    - "transmission-remote-cli-git"
+
+- name: systemd services conf
+  template:
+    src: '{{ item }}.service.j2'
+    dest: '/usr/lib/systemd/system/{{ item }}.service'
+  notify:
+    - daemonreload
+    - start automatic
+    - start transmission
+  with_items:
+    - automatic
+    - transmission
+...

@@ -1,0 +1,78 @@
+## roles/torrentserver/Fedora.yml
+## Fedora main file
+# vim:ft=ansible:
+---
+# exists: /usr/local/bin/automatic
+- name: Automatic RSS Install Status
+  stat:
+    path: /usr/local/bin/automatic
+  register: automatic
+
+# packages: 
+# git, automake, libcurl-devel, libxml2-devel, pcre-devel
+- name: Install packages
+  dnf:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - "git"
+    - "automake"
+    - "libcurl-devel"
+    - "libxml2-devel"
+    - "pcre-devel"
+    - "python-firewall"
+    - "transmission-cli"
+    - "transmission-remote-cli"
+  notify:
+    - start transmission
+    - start automatic
+
+- name: git clone 1100101/Automatic.git
+  git:
+    repo: 'https://github.com/1100101/Automatic.git'
+    dest: /tmp/Automatic
+    clone: yes
+  when: not automatic.stat.exists
+
+- name: run autogen
+  command: /tmp/Automatic/autogen.sh
+  when: not automatic.stat.exists
+
+- name: make install Automatic
+  make:
+    chdir: /tmp/Automatic
+    target: install
+  when: not automatic.stat.exists
+
+# template: automatic.conf automatic.service > / (selinux )
+- name: automatic.conf
+  template:
+    src: automatic.conf.j2
+    dest: /etc/automatic.conf
+  notify:
+    - start automatic
+
+- name: systemd services conf
+  template:
+    src: '{{ item }}.service.j2'
+    dest: '/usr/lib/systemd/system/{{ item }}.service'
+  notify:
+    - daemonreload
+    - start transmission
+    - start automatic
+  with_items:
+    - transmission
+    - automatic
+
+- name: Open firewall
+  firewalld:
+    port: '{{ item }}'
+    permanent: true
+    state: enabled
+  with_items:
+    - 9091/tcp
+    - 51413/tcp
+
+- name: stop transmission daemon
+  service: name=transmission state=stopped
+...

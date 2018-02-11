@@ -1,0 +1,33 @@
+## roles/torrentserver/tasks/main.yml
+## Role main file
+# vim:ft=ansible
+---
+- include_vars: secrets.yml
+
+- include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution }}.yml"
+    - "{{ ansible_os_family }}.yml"
+
+- name: stop transmission daemon
+  service: name=transmission state=stopped
+
+- file:
+    state: directory
+    path: '{{ userHome }}/.config/{{ item }}'
+    owner: '{{ transmissionUser }}'
+    group: '{{ transmissionUser }}'
+  with_items:
+    - transmission-daemon
+    - transmission-rss
+- name: transmission-config
+  become: True
+  become_user: '{{ transmissionUser }}'
+  template:
+    src: transmission-settings.json.j2
+    dest: '{{ userHome }}/.config/transmission-daemon/settings.json'
+    owner: '{{ transmissionUser }}'
+    group: '{{ transmissionUser }}'
+  notify:
+    - start transmission
+...

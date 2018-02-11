@@ -1,0 +1,15 @@
+## roles/ansible-role-torrentserver/handlers/main.yml
+# vim:ft=ansible:
+---
+- name: daemonreload
+  command: systemctl daemon-reload
+
+- name: start automatic
+  service: name=automatic state=restarted enabled=yes
+
+- name: start transmission
+  service: name=transmission state=restarted enabled=yes
+
+- name: start transmission-rss
+  service: name=transmission-rss state=restarted enabled=yes
+...

@@ -1,0 +1,13 @@
+# {{ ansible_managed }} {{role_path}}
+[Unit]
+Description=Transmission BitTorrent Daemon
+After=network.target
+
+[Service]
+User={{ transmissionUser }}
+Type=notify
+ExecStart=/usr/bin/transmission-daemon -f --log-error -c {{ downloadsDir }}
+ExecReload=/bin/kill -s HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
