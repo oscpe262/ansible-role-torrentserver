@@ -4,6 +4,6 @@
 transmissionUser: transmission
 transmissionGroup: transmission
 userHome: /var/lib/transmission
-downloadsDir: /zfs/Downloads
+downloadsDir: /dl
 bindIP: "192.168.0.101"
 ...
