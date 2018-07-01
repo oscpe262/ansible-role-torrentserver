@@ -1,6 +1,6 @@
 ## roles/torrentserver/Fedora.yml
 ## Fedora main file
-# vim:ft=ansible:
+# vim:ft=yaml.ansible:
 ---
 # exists: /usr/local/bin/automatic
 - name: Automatic RSS Install Status

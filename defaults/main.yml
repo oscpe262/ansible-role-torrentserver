@@ -1,5 +1,5 @@
 ## roles/ansible-role-torrentserver/defaults.main
-# vim:ft=ansible:
+# vim:ft=yaml.ansible:
 ---
 transmissionUser: transmission
 transmissionGroup: transmission

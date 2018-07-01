@@ -1,6 +1,6 @@
 ## roles/torrentserver/Archlinux.yml
 ## Arch Linux main file
-# vim:ft=ansible:
+# vim:ft=yaml.ansible:
 ---
 - name: automatic - rss downloader
   become: True

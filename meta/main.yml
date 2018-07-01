@@ -1,4 +1,4 @@
 ## roles/ansible-role-torrentserver/meta/main.yml
-# vim:ft=ansible:
+# vim:ft=yaml.ansible:
 ---
 ...

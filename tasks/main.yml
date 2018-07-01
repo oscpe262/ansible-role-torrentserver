@@ -1,6 +1,6 @@
 ## roles/torrentserver/tasks/main.yml
 ## Role main file
-# vim:ft=ansible
+# vim:ft=yaml.ansible
 ---
 - include_vars: secrets.yml
 
