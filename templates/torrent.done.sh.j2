@@ -1,0 +1,222 @@
+#!/bin/bash
+
+TRACEME=0
+
+### Global vars
+BASE="/."
+LOGFILE=/var/log/torrents.log
+RECENT_LOG=/var/log/recent-torrents.log
+FULLPATH=${TR_TORRENT_DIR}/${TR_TORRENT_NAME}
+#FULLPATH=$1
+UNRARDIR=/md1/.unrartmp
+DISK=md0
+ALTDISK=md1
+#DOWNLOAD_DIR=$(dirname $TR_TORRENT_DIR)
+DOWNLOAD_DIR=/dl
+i=0
+### Support functions
+trace() {
+  [[ $TRACEME == '1' ]] && echo -e "TRACE :: $@"
+}
+
+reclog() {
+  echo -e "$@" >> $RECENT_LOG
+}
+
+elog() {
+  echo -e "$@" >> $LOGFILE
+}
+
+combolog() {
+  INVAR="$@"
+  elog "${INVAR}"
+  reclog "${INVAR}"
+}
+
+redlog() {
+  combolog "       `date +%R` \e[31m$@\e[0m"
+}
+
+greenlog() {
+  elog "       `date +%R` \e[32m$@\e[0m"
+}
+
+chowndir() {
+  TARGETDIR=$1
+  trace "$USER $TARGETDIR"
+  sudo chown $USER:users "$TARGETDIR" -R ; chmod g+r,o+r,g-w,o-w "$TARGETDIR" -R
+}
+
+unrar_to_temp() {
+  trace "Extracting archive to ${UNRARDIR}/${TITLE}"
+  mkdir "${UNRARDIR}/${TITLE}" -p
+  unrar x -o+ "${rar}" "${UNRARDIR}/${TITLE}" && greenlog "Successfully extracted ${rar}" || redlog "Extraction failed ${rar}"
+  SRC=${UNRARDIR}/${TITLE}
+}
+
+copy_to_dest() {
+  if [[ "$FILE_TYPE" == "rar" ]]; then
+    unrar_to_temp
+    RARMOD=/$(basename ${DEST})
+    SRC="${UNRARDIR}/${TITLE}"
+    trace "Copy \n\t${SRC}\n\t to \n\t${DEST%$RARMOD}"
+    rsync --remove-source-files -rc "${SRC}" "${DEST%$RARMOD}" && greenlog "Successfully copied" || redlog "Copy failed ($SRC) : (${DEST%$RARMOD})"
+  else
+    SRC="$rar"
+    RARMOD=/$(basename ${DEST})
+    trace "Copy \n\t${SRC}\n\t to \n\t${DEST}"
+    mkdir ${DEST}
+    rsync -rc "$SRC" "${DEST}" && greenlog "Successfully copied" || redlog "Copy failed"
+  fi
+}
+
+series_episode_exists() {
+  local TEMPSTRING="${rar##*${TITLE}.}"
+  EPISODE=`echo ${TEMPSTRING} | cut -c1-6`
+  ls $DEST | grep -i $EPISODE && redlog "Found episode ${TITLE}.${EPISODE} in $DEST. Take action manually!"
+}
+
+setdest() {
+  trace "ENTER SETDEST" 
+  EXISTS=false
+  if [[ -d ${BASE}/${DISK}/vids/${VID_TYPE}/${TITLE} ]]; then
+    EXISTS=true
+    trace "[1] EXISTS $EXISTS on $DISK"
+  else
+    ### Swapping DISK/ALTDISK, thereby caching last check
+    trace "SWAP DISK"
+    _DISKTMP=$DISK ; DISK=$ALTDISK ; ALTDISK=$_DISKTMP
+    [[ -d ${BASE}/${DISK}/vids/${VID_TYPE}/${TITLE} ]] && EXISTS=true && trace "[2] EXISTS $EXISTS on $DISK"
+  fi
+
+  if [[ "${EXISTS}" == "false" ]]; then
+    [[ `\df /md0 | awk 'NR==2 {print $4}'` -ge `\df /md1 | awk 'NR==2 {print $4}'` ]] && DISK=md0
+    trace "DOES NOT EXIST ON DISK : MOST SPACE FOUND ON $DISK"
+  fi
+  [[ "$ISSUB" == "1" ]] && TITLE=${TITLE}/Subs
+  DEST=${BASE}/${DISK}/vids/${VID_TYPE}/${TITLE}
+  trace "DEST : $DEST"
+}
+
+subtitles() {
+  trace "TYPE is $VID_TYPE:Subtitles"
+  if [[ "$VID_TYPE" == "tv" ]]; then
+    TITLE=`basename $(dirname $(dirname ${rar})) | sed "s/['()]//g ; s/\ /./g ; s/\.S[0-9][0-9]E.*//"`
+    setdest
+  else
+    TITLE=`basename $(dirname $(dirname ${rar})) | sed "s/['()]//g ; s/\ /./g"`
+  fi
+  trace "SUBTITLES : TITLE = $TITLE"
+  ISSUB=1
+}
+
+formula1() {
+  trace "TYPE is f1 : TITLE = $TITLE"
+  DISK=md0
+  YEAR=$(echo ${TITLE} | grep -oP '\d{4}' | head -n1)
+  DEST=${BASE}/${DISK}/vids/${VID_TYPE}/${YEAR}/${TITLE}/
+  trace "FIXED DEST FOR F1 : $DEST"
+  copy_to_dest
+}
+
+shows() {
+  TITLE=`echo ${TITLE} | sed 's/\.S[0-9][0-9]E.*//'`
+  trace "TYPE is tv : TITLE = $TITLE"
+  if [[ "${rar,,}" == *"subs"* ]]; then
+    subtitles
+  fi
+  setdest
+  series_episode_exists
+  copy_to_dest
+}
+
+movie() {
+  trace "TYPE is mov : TITLE = $TITLE"
+  if [[ "${rar,,}" == *"subs"* ]]; then
+    subtitles
+  fi
+  setdest
+  copy_to_dest
+}
+
+### Search download dir
+trace "######################################################################"
+mkdir $UNRARDIR
+exec <<EOF
+`find "${FULLPATH}" -mindepth 0 -maxdepth 5 -type f | egrep '(\.(part01.rar|part001.rar|mkv|avi|mp4)|[[:alpha:]]\.rar)'`
+EOF
+
+while read rar; do
+  trace "\e[32mNEW READ : ${rar} \e[0m"
+  DEST=""
+  ISSUB=0
+  
+  ### No Samples
+  if [[ "${rar,,}" == *"sample"* ]]; then
+    trace "\e[31mIgnoring Sample\e[0m : $rar"
+    continue
+  fi
+
+  ### No trailers
+  if [[ "${rar,,}" == *"trailer"* ]]; then
+    trace "\e[31mIgnoring Trailer\e[0m : $rar"
+    continue
+  fi
+
+  ### Movie or TV show?
+  if [[ ${rar} = *[sS][0-9][0-9][eE]* ]]; then
+    VID_TYPE=tv
+  elif [[ ${rar} = *Formula* ]]; then
+    VID_TYPE=f1
+  elif [[ ${rar} = *[xX][xX][xX]* ]]; then
+    VID_TYPE=xxx
+  else
+    VID_TYPE=mov
+  fi
+
+  FILE_NAME=$(basename "$rar")
+  FILE_TYPE=${FILE_NAME##*.}
+  trace "FILENAME = ${FILE_NAME}"
+
+  ### Clean crap chars in file name
+  if [[ "`dirname $rar`" == "$DOWNLOAD_DIR" ]]; then
+    TITLE=`basename "${rar}" | sed "s/['()]//g ; s/\ /./g"`
+    TITLE=${TITLE:0:-4}/${TITLE}
+    trace "FUCKUP TITLE : $TITLE"
+  else
+    TITLE=`basename $(dirname "${rar}" | sed "s/['()]//g ; s/\ /./g")`
+  fi
+
+  elog "=== NEW TORRENT ==="
+  elog "`date +%y%m%d\ %R` $rar"
+  ### Title path
+  if [[ "$VID_TYPE" == 'f1' ]]; then
+    formula1
+  elif [[ "$VID_TYPE" == 'tv' ]]; then
+    shows
+  elif [[ "$VID_TYPE" == 'mov' ]]; then
+    movie
+  fi
+
+  chowndir /md0/vids/f1
+  chowndir /md0/vids/mov
+  chowndir /md0/vids/tv
+  chowndir /md1/vids/mov
+  chowndir /md1/vids/tv
+
+# Log download
+elog "`date +%y%m%d\ %R` $VID_TYPE $FILE_TYPE ${FULLPATH} ${rar} $DEST"
+reclog "`date +%y%m%d\ %R` $rar"
+#elog "       `date +%R` $rar "
+#elog "       `date +%R` $DEST "
+rm -rf $UNRARDIR
+done
+
+### debug
+#echo -e "\ndate   time  VID EXT FULLPATH\n########################################"
+echo "######################################################################"
+grep `date +%R` $LOGFILE
+#
+if [[ -d /md/vids/mov0/boot ]]; then
+  elog "This one went wrong: $rar"
+sudo rm -rf /md/vids/mov0/{boot,data,dev,@System.solv,dl}
