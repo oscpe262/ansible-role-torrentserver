@@ -1,7 +1,8 @@
-# {{ ansible_managed }} {{ role_path }}
+# {{ ansible_managed }}
 [Unit]
 Description=RSS downloader that adds torrents directly to Transmission
 After=transmission.service
+Requires=transmission.service
 
 [Service]
 Type=simple

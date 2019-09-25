@@ -12,14 +12,6 @@
 - name: stop transmission daemon
   service: name=transmission state=stopped
 
-#- file:
-#    state: directory
-#    path: '{{ userHome }}/.config/{{ item }}'
-#    owner: '{{ transmissionUser }}'
-#    group: '{{ transmissionUser }}'
-#  with_items:
-#    - transmission-daemon
-#    - transmission-rss
 - name: transmission-config
   tags: transconf
   template:

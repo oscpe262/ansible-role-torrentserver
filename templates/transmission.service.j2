@@ -1,7 +1,8 @@
-# {{ ansible_managed }} {{role_path}}
+# {{ ansible_managed }}
 [Unit]
 Description=Transmission BitTorrent Daemon
-After=network.target
+After=network.target {{ transmission_required_services|join(' ') }}
+Requires={{ transmission_required_services|join(' ') }}
 
 [Service]
 User={{ transmissionUser }}

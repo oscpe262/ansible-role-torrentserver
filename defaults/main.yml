@@ -7,4 +7,5 @@ userHome: /var/lib/transmission
 downloadsDir: /dl
 transmissionDoneScriptFile: torrent.done.sh
 transmissionDoneScriptPath: '{{ userHome }}'
+transmission_required_services: []
 ...

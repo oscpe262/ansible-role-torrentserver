@@ -11,8 +11,6 @@
 - include_role:
     name: ansible-role-repo-rpmfusion
 
-# packages: 
-# git, automake, libcurl-devel, libxml2-devel, pcre-devel
 - name: Install packages
   dnf:
     name:
@@ -23,10 +21,9 @@
       - "libcurl-devel"
       - "libxml2-devel"
       - "pcre-devel"
-      #- "python-firewall"
+      - "rsync"
       - "transmission-cli"
       - "transmission-daemon"
-      #- "transmission-remote-cli"
       - "unrar"
     state: present
   notify:
@@ -50,7 +47,6 @@
     target: install
   when: not automatic.stat.exists
 
-# template: automatic.conf automatic.service > / (selinux )
 - name: automatic.conf
   template:
     src: automatic.conf.j2
